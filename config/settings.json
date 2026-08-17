@@ -1,0 +1,6 @@
+{
+  "voicevox_port": 50022,
+  "voicevox_auto_start": true,
+  "font_family": "Meiryo",
+  "api_auto_start": true
+}
