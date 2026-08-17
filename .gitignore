@@ -167,7 +167,6 @@ cython_debug/
 # Custom project specific ignores
 temp/
 history/
-data/
 
 config/api_key.txt
 test/

@@ -62,7 +62,7 @@ class GeminiLiveGUIApp:
     """TkinterによるGUIのメインクラス"""
     def __init__(self, root):
         self.root = root
-        self.root.title("Gemini Live GUI - AI音声合成 (v4)")
+        self.root.title("Gemini Live GUI - AI音声合成 (v5)")
         self.root.geometry("1000x750")
         self.root.minsize(850, 650)
 

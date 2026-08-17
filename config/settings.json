@@ -1,6 +1,5 @@
 {
-  "voicevox_port": 50022,
-  "voicevox_auto_start": true,
-  "font_family": "Meiryo",
-  "api_auto_start": true
+  "api_port": 50022,
+  "api_auto_start": true,
+  "font_family": "Meiryo"
 }
