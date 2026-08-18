@@ -50,9 +50,9 @@ Gemini Live GUI は、Google の Gemini 3 HD (Chirp 3 HD) 等の音声モデル�
 本文執筆時点では、従量課金無しでも`Peak input tokens per minute`(分間の処理文字数) が`65K`までという制限があるくらいで、あとは無制限となっています。
 制限は変わっていくものなので、適切に管理願います。
 
-## SAPI連携について（オプション）
-現バージョンでは動作しません。
-AssistantSeikaは、VoiceVoxと同じ50021ポートで起動することで連携が可能です。
+## SAPI5連携について（オプション）
+SAPI5は現バージョンでは動作しません。
+AssistantSeikaは、VOICEVOXファミリー設定で、2ndあたりを50022ポートにすることで連携が可能です。
   
 (調整中)外部アプリから本ツールの音声を SAPI 経由で呼び出す場合、`sapi_bridge` フォルダ内のバッチファイル（`register_sapi.bat` 等）を管理者権限で実行して、ブリッジDLLをシステムに登録する必要があります。不要になった場合は `unregister_sapi.bat` を実行してください。
 
