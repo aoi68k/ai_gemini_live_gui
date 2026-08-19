@@ -80,6 +80,7 @@ class GeminiLiveGUIApp:
         # キャラクター切り替えによるパラメータ無限上書き防止フラグ
         self.is_loading_character = False
         self.app_logs = []
+        self.api_call_count = 0
         
         # 設定のロード
         self.settings = config.load_settings()
@@ -240,10 +241,19 @@ class GeminiLiveGUIApp:
         bottom_frame = ttk.Frame(right_paned)
         right_paned.add(bottom_frame, weight=1)
 
-        # お気に入り
+        # お気に入り & ボイス選択フレーム
+        fav_voice_frame = ttk.Frame(bottom_frame)
+        fav_voice_frame.pack(fill=tk.X, pady=(0, 5))
+
         self.favorite_var = tk.BooleanVar(value=False)
-        self.favorite_cb = ttk.Checkbutton(bottom_frame, text="⭐ お気に入り", variable=self.favorite_var, command=self.on_favorite_change)
-        self.favorite_cb.pack(anchor=tk.W, pady=(0, 5))
+        self.favorite_cb = ttk.Checkbutton(fav_voice_frame, text="⭐ お気に入り", variable=self.favorite_var, command=self.on_favorite_change)
+        self.favorite_cb.pack(side=tk.LEFT)
+
+        ttk.Label(fav_voice_frame, text="Geminiの声:").pack(side=tk.LEFT, padx=(10, 5))
+        self.voice_var = tk.StringVar()
+        self.voice_cb = ttk.Combobox(fav_voice_frame, textvariable=self.voice_var, values=VOICE_LIST, state="readonly", width=25)
+        self.voice_cb.pack(side=tk.LEFT)
+        self.voice_cb.bind("<<ComboboxSelected>>", self.on_voice_change)
 
         # [中部] 性格設定 (system_instruction) - テキスト入力（リスト）の下に配置
         self.inst_container = ttk.LabelFrame(bottom_frame, text="性格設定 (system_instruction) - 自動保存されます", padding=10)
@@ -322,7 +332,7 @@ class GeminiLiveGUIApp:
         port_frame.pack(anchor=tk.W, pady=2)
         ttk.Label(port_frame, text="ポート番号:").pack(side=tk.LEFT)
         
-        self.port_var = tk.StringVar(value=str(self.settings.get("api_port", 50021)))
+        self.port_var = tk.StringVar(value=str(self.settings.get("api_port", 50022)))
         def on_port_change(*args):
             try:
                 port = int(self.port_var.get())
@@ -341,14 +351,14 @@ class GeminiLiveGUIApp:
         self.auto_start_var.trace_add("write", on_auto_start_change)
         ttk.Checkbutton(left_config_frame, text="アプリ起動時に自動でサーバーを起動", variable=self.auto_start_var).pack(anchor=tk.W, pady=2)
         
-        self.api_address_label = ttk.Label(left_config_frame, text=f"連携先アドレス: http://127.0.0.1:{self.settings.get('api_port', 50021)}")
+        self.api_address_label = ttk.Label(left_config_frame, text=f"連携先アドレス: http://127.0.0.1:{self.settings.get('api_port', 50022)}")
         self.api_address_label.pack(anchor=tk.W, pady=(5, 0))
 
         # SAPI5 連携
         sapi_frame = ttk.LabelFrame(frame, text="🚧 SAPI5 外部連携 (現在工事中/使用不可)", padding=10)
         sapi_frame.pack(fill=tk.X, pady=(0, 20))
 
-        sapi_desc = "※ネイティブアプリとの互換性の問題により現在工事中です。\nAssistantSeika等との連携は、内蔵のVOICEVOX機能(ポート50021)をご利用ください。"
+        sapi_desc = "※ネイティブアプリとの互換性の問題により現在工事中です。\nAssistantSeika等との連携は、VOICEVOXファミリー設定でポート50022などをご利用ください。"
         ttk.Label(sapi_frame, text=sapi_desc, wraplength=350, foreground="red").pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         sapi_btn_frame = ttk.Frame(sapi_frame)
@@ -376,6 +386,11 @@ class GeminiLiveGUIApp:
         log_msg = f"[{timestamp}] {message}"
         self.app_logs.append(log_msg)
         
+        if message.startswith("[SEND] APIにリクエスト送信") or message.startswith("API Synthesis Request:"):
+            self.api_call_count += 1
+            if hasattr(self, 'log_win') and self.log_win.winfo_exists():
+                self.log_win.title(f"API通信ログ (計数: {self.api_call_count})")
+        
         def _update_ui():
             if hasattr(self, 'log_win') and self.log_win.winfo_exists():
                 self.log_text.configure(state='normal')
@@ -402,7 +417,7 @@ class GeminiLiveGUIApp:
             return
             
         self.log_win = tk.Toplevel(self.root)
-        self.log_win.title("API通信ログ")
+        self.log_win.title(f"API通信ログ (計数: {self.api_call_count})")
         self.log_win.geometry("600x400")
         self.log_win.transient(self.root)
         
@@ -637,9 +652,9 @@ class GeminiLiveGUIApp:
                 pass
         
         if deleted > 0:
-            messagebox.showinfo("キャッシュ削除", "この行の音声キャッシュを削除しました。\n次回再生時に再生成されます。")
+            self.status_bar.config(text="この行の音声キャッシュを削除しました。次回再生時に再生成されます。")
         else:
-            messagebox.showinfo("キャッシュ削除", "削除するキャッシュがありませんでした。")
+            self.status_bar.config(text="削除するキャッシュがありませんでした。")
 
     def setup_row_hover(self, row):
         """マウスホバーで行の右側にボタンを表示する処理"""
@@ -751,6 +766,18 @@ class GeminiLiveGUIApp:
         
         self.favorite_var.set(char_data.get("is_favorite", False))
         
+        current_voice = char_data.get("voice_name", "Zephyr")
+        match_idx = -1
+        for i, v in enumerate(VOICE_LIST):
+            if v.startswith(current_voice):
+                match_idx = i
+                break
+        if hasattr(self, 'voice_cb'):
+            if match_idx >= 0:
+                self.voice_cb.current(match_idx)
+            else:
+                self.voice_cb.set(current_voice)
+        
         self.inst_text.delete("1.0", tk.END)
         self.inst_text.insert(tk.END, char_data.get("system_instruction", ""))
         self.inst_container.config(text=f"性格設定 (system_instruction) - 「{char_data.get('name', char_key)}」 - 自動保存されます")
@@ -781,6 +808,17 @@ class GeminiLiveGUIApp:
             self.characters[char_key]["is_favorite"] = self.favorite_var.get()
             config.save_characters(self.characters)
             self.update_char_listbox()
+
+    def on_voice_change(self, event=None):
+        if getattr(self, 'is_loading_character', False):
+            return
+        if not hasattr(self, 'speech_rows') or getattr(self, 'active_row_idx', -1) >= len(self.speech_rows):
+            return
+            
+        char_key = self.speech_rows[self.active_row_idx]["char_key"]
+        if char_key in self.characters:
+            self.characters[char_key]["voice_name"] = self.voice_var.get().split(" ")[0].strip()
+            config.save_characters(self.characters)
 
     def show_character_properties(self):
         selection = self.char_listbox.selection()
@@ -870,7 +908,7 @@ class GeminiLiveGUIApp:
             messagebox.showwarning("警告", "最後の1人は削除できません。")
             return
             
-        if not messagebox.askyesno("削除の確認", f"キャラクター「{char_name}」を削除しますか？\n（復旧する場合はヘルプ画面から行えます）"):
+        if not messagebox.askyesno("削除の確認", f"キャラクター「{char_name}」を削除しますか？"):
             return
             
         if char_key in self.char_keys:
@@ -886,7 +924,8 @@ class GeminiLiveGUIApp:
             if row["char_key"] == char_key:
                 self.change_row_character(row, fallback_key)
                 
-        messagebox.showinfo("削除完了", f"「{char_name}」を削除しました。")
+        self.status_bar.config(text=f"キャラクター「{char_name}」を削除しました。")
+
 
     def on_parameter_change(self, *args):
         """スライダーの値を動的にキャラクターデータに保存する"""
@@ -1112,7 +1151,7 @@ class GeminiLiveGUIApp:
             
             # 現在アクティブな行に追加したキャラを即時適用
             self.change_row_character(self.speech_rows[self.active_row_idx], key)
-            messagebox.showinfo("成功", f"新キャラクター「{name}」を追加しました！")
+            self.status_bar.config(text=f"新キャラクター「{name}」を追加しました！")
 
         ttk.Button(frame, text="登録保存", command=do_save).pack(pady=15)
 
